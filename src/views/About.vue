@@ -4,37 +4,14 @@
             <h1>ABOUT SOFTWARE</h1>
         </header>
         <main>
-            <p>本软件支持离线使用，最重要的是，它是完全免费的</p>
-            <p>
-                您可以在这里找到我的Git存储库
-                <a href="#" @click="openUrl">{{ gitRepo }}</a>
-                .
-            </p>
-            <p>
-                如有任何疑问，也可以通过邮箱联系我
-                <span>{{ contact }}</span>
-            </p>
+            <p>本地小说阅读器：书籍、阅读进度和设置均保存在本机。</p>
+            <p>无需账号或联网即可使用。</p>
         </main>
     </div>
 </template>
 
 <script>
-const { shell } = window.require('electron');
-export default {
-    name: 'About',
-    data() {
-        return {
-            developer: 'Mofabo',
-            gitRepo: 'https://github.com/3529/fish-book',
-            contact: 'mofabo@163.com',
-        };
-    },
-    methods: {
-        openUrl() {
-            shell.openExternal(this.gitRepo);
-        },
-    },
-};
+export default { name: 'About' };
 </script>
 
 <style scoped lang="scss">

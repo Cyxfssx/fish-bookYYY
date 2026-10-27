@@ -1,6 +1,6 @@
 'use strict';
 
-const { app, BrowserWindow, Tray, Menu, ipcMain, screen } = require('electron');
+const { app, BrowserWindow, Tray, Menu, ipcMain, screen, session } = require('electron');
 import { createProtocol } from 'vue-cli-plugin-electron-builder/lib';
 import path from 'path';
 import fs from 'fs';
@@ -8,7 +8,7 @@ import { sysConfigStore } from '../src/config/index';
 import './common/fs';
 import { FOLDER_PATH } from './common/path';
 import { sysConfig } from './config/sysConfig';
-const { registerShortcuts, unregisterShortcuts } = require('./common/shortcut');
+const { registerShortcuts, unregisterShortcuts, applyShortcuts } = require('./common/shortcut');
 
 const isDev = process.env.NODE_ENV === 'development';
 if (isDev) {
@@ -36,6 +36,7 @@ async function createWindow() {
         },
     });
     // mainWindow.webContents.openDevTools();
+    mainWindow.on('blur', restoreShortcuts);
     mainWindow.on('ready-to-show', () => {
         mainWindow.show();
     });
@@ -124,7 +125,7 @@ function createReadWindow() {
         // console.log('子窗口被关闭了');
     });
 
-    readWindow.hookWindowMessage(278, function (e) {
+    if (process.platform === 'win32') readWindow.hookWindowMessage(278, function () {
         readWindow.setEnabled(false); //窗口禁用
         setTimeout(() => {
             readWindow.setEnabled(true); //窗口启用
@@ -133,7 +134,11 @@ function createReadWindow() {
     });
     global.readWindow = readWindow;
     // 注册所有快捷键
-    registerShortcuts(readWindow);
+    try {
+        registerShortcuts(readWindow);
+    } catch (error) {
+        console.error(error.message);
+    }
 }
 // 监听从渲染进程发送的消息
 ipcMain.on('readFiles', async (event, data) => {
@@ -192,13 +197,17 @@ ipcMain.on('set-resizable', (event, resizable) => {
     readWindow.setResizable(resizable);
 });
 // 重置快捷键
-ipcMain.on('change-shortcut', () => {
-    // 注销所有快捷键
+ipcMain.handle('apply-shortcuts', (event, keys) => applyShortcuts(readWindow, keys));
+ipcMain.on('shortcut-edit-start', () => unregisterShortcuts());
+function restoreShortcuts() {
     unregisterShortcuts();
-    // 注册所有快捷键
-    registerShortcuts(readWindow);
-    // console.log('重新注册快捷键');
-});
+    try {
+        registerShortcuts(readWindow);
+    } catch (error) {
+        console.error(error.message);
+    }
+}
+ipcMain.on('shortcut-edit-end', restoreShortcuts);
 // 处理获取存储值的请求
 ipcMain.handle('getSysConfig', (event, key) => {
     return sysConfigStore.get(key);
@@ -233,6 +242,16 @@ if (!gotTheLock) {
     });
 
     app.on('ready', async () => {
+        // Reading stays offline; only the local development server is allowed.
+        session.defaultSession.webRequest.onBeforeRequest(
+            { urls: ['http://*/*', 'https://*/*', 'ws://*/*', 'wss://*/*'] },
+            (details, callback) => {
+                const url = new URL(details.url);
+                const localDev = isDev && ['localhost', '127.0.0.1'].includes(url.hostname)
+                    && url.port === '8080' && ['http:', 'ws:'].includes(url.protocol);
+                callback({ cancel: !localDev });
+            }
+        );
         createWindow();
         createReadWindow();
     });
@@ -247,8 +266,9 @@ app.on('will-quit', () => {
 sysConfigStore.onDidAnyChange(newData => {
     const config = configFixer(newData);
     // 向渲染进程发送消息，通知更新数据
-    mainWindow.webContents.send('update-data', config);
-    readWindow.webContents.send('update-data', config);
+    for (const win of [mainWindow, readWindow]) {
+        if (win && !win.isDestroyed()) win.webContents.send('update-data', config);
+    }
 });
 // 检测并修复配置文件
 function configFixer(currentConfig) {

@@ -152,9 +152,7 @@ export default {
             return color;
         },
         getRandomImage() {
-            const randomNum = Math.floor(Math.random() * 300) + 1;
-            // return `url('https://picsum.photos/id/${randomNum}/160/240')`;
-            return `url('https://tuapi.eees.cc/api.php?category=fengjing&type=302&px=m&rdm=${randomNum}')`;
+            return 'linear-gradient(135deg, #34495e, #627d98)';
         },
         showTipDialog() {
             this.tipDialogVisible = true;

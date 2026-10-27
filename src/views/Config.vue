@@ -97,7 +97,7 @@
                     <el-tab-pane label="快捷键">
                         <el-alert
                             class="tip"
-                            title="如果键入快捷键后显示不全，例如按了 Ctrl + F1 却只显示 Ctrl，说明快捷键被其他应用占用了"
+                            title="点击输入框后按下快捷键，再点击“应用”。小键盘 1、2 显示为 num1、num2；注册失败会提示原因。"
                             type="info"
                         ></el-alert>
                         <el-form-item label-width="0">
@@ -110,13 +110,16 @@
                                         placeholder=""
                                         readonly
                                         @keydown="captureShortcut(i, $event)"
-                                        @keyup="releaseShortcut"
-                                        @focus="currentIndex = i"
+                                        @focus="beginShortcutEdit"
+                                        @blur="endShortcutEdit"
                                     />
                                 </div>
                             </div>
                         </el-form-item>
-                        <el-button type="primary" plain @click="resetShortcutSettings">
+                        <el-button type="primary" :loading="applyingShortcuts" @click="applyShortcutSettings">
+                            应用
+                        </el-button>
+                        <el-button plain @click="resetShortcutSettings">
                             恢复默认设置
                         </el-button>
                     </el-tab-pane>
@@ -132,13 +135,14 @@ const { ipcRenderer } = window.require('electron');
 import { setSysConfig } from '@/estore/estore.js';
 import { mapState } from 'vuex';
 import About from './About.vue';
+const { captureAccelerator } = require('../common/shortcutCapture');
 const { bookSettings, shortcutSettings } = require('../config/sysConfig');
 export default {
     name: 'Config',
     data() {
         return {
             shortcutCount: 3,
-            timer: null,
+            applyingShortcuts: false,
             marksBgOpacity: {
                 0.1: '0.1',
                 0.5: '0.5',
@@ -161,13 +165,11 @@ export default {
                 150: '150',
                 200: '200',
             },
-            currentIndex: '',
             form: {
                 theme: 'light',
                 ...bookSettings,
                 ...shortcutSettings,
             },
-            keyCombination: [],
         };
     },
     components: { About },
@@ -201,29 +203,26 @@ export default {
         captureShortcut(index, event) {
             event.preventDefault();
             event.stopPropagation();
-            if (!this.keyCombination.includes(event.key)) {
-                this.keyCombination.push(event.key);
-            }
-            this.form['key' + index] = this.keyCombination
-                .join(' + ')
-                .replace(/Control|control/g, 'ctrl');
+            const shortcut = captureAccelerator(event);
+            if (shortcut) this.form['key' + index] = shortcut;
         },
-        releaseShortcut() {
-            for (let i = 1; i <= this.shortcutCount; i++) {
-                if (i == this.currentIndex) {
-                    continue;
-                }
-                if (this.form['key' + i] == this.form['key' + this.currentIndex]) {
-                    clearTimeout(this.timer);
-                    this.timer = setTimeout(() => {
-                        this.$message.error('快捷键重复！');
-                        this.form['key' + this.currentIndex] = '';
-                    }, 100);
-                }
+        beginShortcutEdit() {
+            ipcRenderer.send('shortcut-edit-start');
+        },
+        endShortcutEdit() {
+            ipcRenderer.send('shortcut-edit-end');
+        },
+        async applyShortcutSettings() {
+            this.applyingShortcuts = true;
+            try {
+                const keys = Object.fromEntries(Object.keys(shortcutSettings).map(key => [key, this.form[key]]));
+                const result = await ipcRenderer.invoke('apply-shortcuts', keys);
+                this.$message({ type: result.success ? 'success' : 'error', message: result.message });
+            } catch (error) {
+                this.$message.error('应用失败：' + error.message);
+            } finally {
+                this.applyingShortcuts = false;
             }
-            this.keyCombination = [];
-            // 更新本地存储
-            this.setShortcut(this.form['key' + this.currentIndex]);
         },
         getShortcutName(index) {
             switch (index) {
@@ -265,11 +264,6 @@ export default {
                 await setSysConfig(key, settingsObj[key]);
                 this.form[key] = settingsObj[key];
             }
-            ipcRenderer.send('change-shortcut');
-        },
-        async setShortcut(data) {
-            await setSysConfig('key' + this.currentIndex, data);
-            ipcRenderer.send('change-shortcut');
         },
         resetBookSettings() {
             this.$confirm('确认要初始化当前页面下的所有设置吗?', '提示', {
@@ -286,24 +280,17 @@ export default {
             });
         },
         resetShortcutSettings() {
-            this.$confirm('确认要初始化当前页面下的所有设置吗?', '提示', {
-                confirmButtonText: '确定',
-                cancelButtonText: '取消',
-                type: 'warning',
-            }).then(() => {
-                this.setConfigsFun(shortcutSettings);
-
-                this.$message({
-                    type: 'success',
-                    message: '已恢复默认配置',
-                });
-            });
+            Object.assign(this.form, shortcutSettings);
+            this.$message.info('已填入默认快捷键，请点击“应用”使其生效');
         },
         mountedDefaultVal(obj) {
             for (let key in obj) {
                 this.form[key] = this[key];
             }
         },
+    },
+    beforeDestroy() {
+        this.endShortcutEdit();
     },
     mounted() {
         this.mountedDefaultVal({ ...bookSettings });

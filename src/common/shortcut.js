@@ -1,38 +1,58 @@
 const { globalShortcut } = require('electron');
 const { shortcutSettings } = require('../config/sysConfig');
 const { sysConfigStore } = require('../config/index');
-async function registerShortcuts(readWindow) {
-    let keys = {};
-    for (let k in shortcutSettings) {
-        keys[k] = sysConfigStore.get(k);
-    }
-    const shortcuts = {
-        // 上一页
-        [keys['key1']]: () => {
-            // 向渲染进程发送消息
-            readWindow.webContents.send('pre-page');
-        },
-        // 下一页
-        [keys['key2']]: () => {
-            readWindow.webContents.send('next-page');
-        },
-        // 阅读器窗口显隐切换
-        [keys['key3']]: () => {
-            readWindow.webContents.send('show-hide-readWin');
-        },
-        // 其他快捷键...
-    };
 
-    Object.entries(shortcuts).forEach(([shortcut, callback]) => {
-        globalShortcut.register(shortcut, callback);
-    });
+function getShortcuts() {
+    return Object.fromEntries(Object.keys(shortcutSettings).map(key => [key, sysConfigStore.get(key)]));
+}
+
+function registerShortcuts(readWindow, keys = getShortcuts()) {
+    const channels = { key1: 'pre-page', key2: 'next-page', key3: 'show-hide-readWin' };
+    for (const key of Object.keys(channels)) {
+        const shortcut = keys[key];
+        try {
+            const registered = globalShortcut.register(shortcut, () => {
+                if (readWindow && !readWindow.isDestroyed()) {
+                    readWindow.webContents.send(channels[key]);
+                }
+            });
+            if (!registered) throw new Error('快捷键已被系统或其他应用占用');
+        } catch (error) {
+            unregisterShortcuts();
+            throw new Error(`${shortcut} 无法注册：${error.message}`);
+        }
+    }
+}
+
+function applyShortcuts(readWindow, keys) {
+    const previous = getShortcuts();
+    const names = Object.keys(shortcutSettings);
+    if (!keys || names.some(key => typeof keys[key] !== 'string' || !keys[key].trim())) {
+        return { success: false, message: '请为每个操作设置完整的快捷键' };
+    }
+    const next = Object.fromEntries(names.map(key => [key, keys[key].trim()]));
+    const canonical = value => value.toLowerCase().replace(/\s/g, '').split('+').sort().join('+');
+    if (new Set(Object.values(next).map(canonical)).size !== names.length) {
+        return { success: false, message: '快捷键重复，请为每个操作设置不同的按键' };
+    }
+    unregisterShortcuts();
+    try {
+        registerShortcuts(readWindow, next);
+        sysConfigStore.set(next);
+        return { success: true, message: '快捷键已应用并保存，下次启动仍然生效' };
+    } catch (error) {
+        unregisterShortcuts();
+        try {
+            registerShortcuts(readWindow, previous);
+        } catch (restoreError) {
+            return { success: false, message: `${error.message}；原快捷键恢复失败：${restoreError.message}` };
+        }
+        return { success: false, message: `${error.message}；已保留原设置` };
+    }
 }
 
 function unregisterShortcuts() {
     globalShortcut.unregisterAll();
 }
 
-module.exports = {
-    registerShortcuts,
-    unregisterShortcuts,
-};
+module.exports = { registerShortcuts, unregisterShortcuts, applyShortcuts };

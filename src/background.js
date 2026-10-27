@@ -19,12 +19,17 @@ if (isDev) {
     console.log('当前为生产环境');
 }
 
+if (process.platform === 'win32') app.setAppUserModelId('com.maizesoft.fish-book');
+
+let appTray = null;
 let mainWindow = null;
 let readWindow = null;
 
 async function createWindow() {
     // Create the browser window.
     mainWindow = new BrowserWindow({
+        title: '莱 · 本地阅读',
+        icon: path.join(__static, 'images/lai.png'),
         width: 1024,
         height: 768,
         // backgroundColor: '#1e222d',
@@ -53,8 +58,8 @@ async function createWindow() {
         mainWindow.loadURL('app://./index.html');
     }
     console.log('__static:', __static);
-    const tray = new Tray(path.join(__static, '/images/logo.png'));
-    tray.setToolTip('fish-book');
+    appTray = new Tray(path.join(__static, process.platform === 'win32' ? 'app-icon.ico' : 'images/lai.png'));
+    appTray.setToolTip('莱 · 本地阅读');
 
     const contextMenu = Menu.buildFromTemplate([
         {
@@ -74,21 +79,23 @@ async function createWindow() {
             },
         },
     ]);
-    tray.setContextMenu(contextMenu);
+    appTray.setContextMenu(contextMenu);
     // 监听托盘双击事件
-    tray.on('double-click', () => {
+    appTray.on('double-click', () => {
         mainWindow.show();
     });
 }
 
 function createReadWindow() {
     // 获取屏幕尺寸
-    const { width } = screen.getPrimaryDisplay().workAreaSize;
+    const { width, height } = screen.getPrimaryDisplay().workAreaSize;
 
     // 创建一个新的无边框窗口
     readWindow = new BrowserWindow({
-        width: 800,
-        height: 40,
+        title: '莱 · 阅读',
+        icon: path.join(__static, 'images/lai.png'),
+        width: Math.min(800, width),
+        height: Math.min(420, height),
         x: Math.floor((width - 800) / 2), // 窗口在 X 轴上的位置居中
         y: 0, // 窗口在 Y 轴上的位置放置在屏幕底部
         frame: false,
@@ -105,7 +112,7 @@ function createReadWindow() {
     });
     // readWindow.webContents.openDevTools();
     readWindow.setMaximumSize(1920, 1080);
-    readWindow.setMinimumSize(32, 32);
+    readWindow.setMinimumSize(240, 100);
     readWindow.setSkipTaskbar(true);
     readWindow.setOpacity(0.7);
     // 将窗口设置为全局置顶

@@ -1,7 +1,7 @@
 // 阅读器相关设置项
 const bookSettings = {
     // 小说每页字数
-    wordsPerPage: 40,
+    wordsPerPage: 800,
     // 小说字体颜色
     textColor: '#ffffff',
     // 小说背景颜色

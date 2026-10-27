@@ -1,15 +1,15 @@
-# fish-book 离线版 1.1.0（Windows 64 位）
+# 莱 · 本地阅读 1.2.0（Windows 64 位）
 
-[点击下载 EPUB + TXT 免安装版](https://github.com/Cyxfssx/fish-bookYYY/raw/refs/heads/download/offline-v1.1.0/downloads/fish-book-offline-1.1.0-win-x64.zip)
+[点击下载免安装版](https://github.com/Cyxfssx/fish-bookYYY/raw/refs/heads/download/offline-v1.2.0/downloads/lai-reader-offline-1.2.0-win-x64.zip)
 
-完整解压后运行 `fish-book.exe`。书籍放入 `resources/books`，回到“我的书架”点击“同步书架”。升级时请将旧版书籍复制到新版相同目录。
+完整解压后运行 `fish-book.exe`。书籍放入 `resources/books`，在“我的书架”点击“同步书架”。升级时请保留旧版书籍并复制到新版相同目录。
 
-- 支持 TXT、未加密 EPUB 2 / EPUB 3 的文字阅读，全程离线。
-- 书架卡片点击“目录 / 选章节”即可跳章，阅读窗口右侧目录图标也可打开章节菜单。
-- EPUB 按书内顺序读取章节与目录，TXT 自动识别“第一章”等标题。
-- 在快捷键设置中按下小键盘 1、2（`num1`、`num2`）后点击“应用”，结果会有提示。
-- 不显示 EPUB 原书排版和图片；不支持 DRM 加密 EPUB。
+- 程序、任务栏窗口与托盘使用绿色“莱”字图标，EXE 图标资源已更新。
+- 每页字数支持 5～5000，可在“配置 → 小说阅读器”直接输入；新配置默认 800 字，升级保留已有字数设置。
+- 阅读窗口默认高度 420，保留段落换行；长内容可滚动，顶部栏可拖动窗口。
+- 保留 TXT、未加密 EPUB 2/3 的文字阅读、目录选章、小键盘翻页和设置应用提示。
+- 离线运行，禁止外网请求。EPUB 图片和原书完整样式不显示。
 
-验证：9 项解析和快捷键测试、生产构建、打包内应用的 EPUB 书架/目录/跳章/翻页、TXT 回归、阅读目录菜单与外网拦截检查通过。Windows EXE 未签名，尚未在真实 Windows 系统上运行验证。
+验证：生产构建、EXE 图标资源、打包内应用的 5000 字显示、滚动、翻页、EPUB 目录跳章、TXT 回归和外网拦截均通过。未在真实 Windows 系统上运行验证，EXE 未签名。
 
-源码与测试在同一分支；下载完整性可用 `SHA256SUMS.txt` 检查。
+下载完整性可使用 `SHA256SUMS.txt` 验证。

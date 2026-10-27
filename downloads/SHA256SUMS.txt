@@ -1,1 +1,1 @@
-03e5579e15ea28c130614fc2e386f4a4b5cd0995dbd56d3945d026cadaba3700  fish-book-offline-1.1.0-win-x64.zip
+c727e7e8f5d13292551c0088c915e327c28936ab9b9be1b7604a31b31363f0df  lai-reader-offline-1.2.0-win-x64.zip

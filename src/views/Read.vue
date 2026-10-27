@@ -1,26 +1,15 @@
 <template>
     <div>
         <div class="read-board" :style="{ backgroundColor: `${textBgColor}` }">
-            <div
-                class="content"
-                :style="{ fontSize: fontSize + 'px', letterSpacing: letterSpacing + 'px' }"
-            >
-                <span :style="{ color: `${textColor}` }">
-                    {{ errorMessage }}
-                    <!-- {{ booksInfo[currentBookIndex].start }}
-                    {{ booksInfo[currentBookIndex].total }} -->
-                    {{ fileContent }}
-                </span>
+            <div class="read-toolbar" :style="{ color: textColor }">
+                <span class="progress" v-if="theBook">{{ theBook.bookProgress }}%</span>
+                <span class="drag-hint">拖动此处移动窗口</span>
+                <button class="chapter-menu" @click="selectChapter" title="目录 / 选章节">
+                    <i class="el-icon-tickets"></i> 目录
+                </button>
+                <button class="close" @click="close" title="隐藏阅读窗口"><i class="el-icon-close"></i></button>
             </div>
-            <div class="progress" v-if="theBook" :style="{ color: `${textColor}`, opacity: 0.7 }">
-                {{ theBook.bookProgress }}%
-            </div>
-            <div class="chapter-menu" @click="selectChapter" :style="{ color: textColor }" title="目录 / 选章节">
-                <i class="el-icon-tickets"></i>
-            </div>
-            <div class="close" @click="close" :style="{ color: `${textColor}`, opacity: 0.7 }">
-                <i class="el-icon-close"></i>
-            </div>
+            <div ref="content" class="content" :style="{ fontSize: fontSize + 'px', letterSpacing: letterSpacing + 'px', color: textColor }"><span>{{ errorMessage || fileContent }}</span></div>
         </div>
     </div>
 </template>
@@ -58,6 +47,7 @@ export default {
     },
     watch: {
         time: async function () { await this.openCurrentBook(); },
+        wordsPerPage: async function () { await this.loadFileContent(); },
 
     },
     methods: {
@@ -89,6 +79,8 @@ export default {
                 } else {
                     this.errorMessage = '';
                     this.fileContent = fileContent;
+                    await this.$nextTick();
+                    if (this.$refs.content) this.$refs.content.scrollTop = 0;
                     console.log(this.theBook);
                     const position =
                         ((this.theBook.start + this.wordsPerPage) * 100) / this.theBook.total;
@@ -182,44 +174,42 @@ export default {
 
 <style lang="scss">
 .read-board {
-    width: calc(100vw - 20px);
+    width: 100vw;
     height: 100vh;
-    color: #fff;
-    margin: 0;
-    line-height: 40px;
-    padding: 0 10px;
-    overflow: hidden;
+    box-sizing: border-box;
     display: flex;
-    justify-content: space-between;
-
-    -webkit-user-select: auto;
+    flex-direction: column;
+    overflow: hidden;
     .content {
-        width: calc(100vw - 70px);
-        -webkit-app-region: drag;
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        padding: 12px 20px 20px;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+        line-height: 1.9;
+        -webkit-app-region: no-drag;
+        user-select: text;
     }
 }
-.el-main {
-    margin: 0 !important;
-    padding: 0 !important;
+.read-toolbar {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    height: 32px;
+    padding: 0 10px;
+    border-bottom: 1px solid rgba(128, 128, 128, 0.25);
+    -webkit-app-region: drag;
+    .progress { margin-right: 12px; font-size: 12px; }
+    .drag-hint { flex: 1; opacity: 0.5; font-size: 11px; }
+    button {
+        -webkit-app-region: no-drag;
+        color: inherit;
+        background: transparent;
+        border: 0;
+        padding: 5px 8px;
+        cursor: pointer;
+    }
 }
-.chapter-menu {
-    position: absolute; right: 30px; top: 0; width: 30px; text-align: center;
-    cursor: pointer; -webkit-app-region: no-drag;
-}
-.close {
-    position: absolute;
-    right: 0;
-    color: #666;
-    width: 30px;
-    text-align: center;
-    // background-color: #fff;
-}
-.close:hover {
-    transform: scale(1.2);
-    transition: all 0.2s;
-    -webkit-app-region: no-drag;
-}
-.progress {
-    margin-right: 54px;
-}
+.el-main { margin: 0 !important; padding: 0 !important; }
 </style>

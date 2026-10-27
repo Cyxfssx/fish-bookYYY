@@ -24,14 +24,16 @@
                             <el-slider
                                 v-model.number="form.wordsPerPage"
                                 :min="5"
-                                :max="200"
+                                :max="5000"
                                 :step="1"
                                 :marks="marksWordsTotal"
+                                show-input
                                 @change="wordsPerPageChange"
                                 style="width: 420px"
                             ></el-slider>
                         </el-form-item>
                         <br />
+                        <p class="reading-hint">每页最多 5000 字，可输入具体数值。内容较多时在阅读窗口内滚动查看，也可拖动窗口边缘放大。</p>
                         <el-form-item label="字体颜色">
                             <el-color-picker
                                 v-model="form.textColor"
@@ -154,17 +156,7 @@ export default {
                 },
                 1: '1',
             },
-            marksWordsTotal: {
-                40: {
-                    style: {
-                        color: '#1989FA',
-                    },
-                    label: this.$createElement('strong', '推荐40'),
-                },
-                100: '100',
-                150: '150',
-                200: '200',
-            },
+            marksWordsTotal: { 1000: '1000', 3000: '3000', 5000: '5000' },
             form: {
                 theme: 'light',
                 ...bookSettings,
@@ -305,6 +297,7 @@ export default {
 h2 {
     // padding-left: 40px;
 }
+.reading-hint { font-size: 13px; color: #666; margin-bottom: 20px; }
 .settings-container {
     // padding-left: 100px;
     // padding-bottom: 30px;

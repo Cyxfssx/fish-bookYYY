@@ -15,6 +15,9 @@
             <div class="progress" v-if="theBook" :style="{ color: `${textColor}`, opacity: 0.7 }">
                 {{ theBook.bookProgress }}%
             </div>
+            <div class="chapter-menu" @click="selectChapter" :style="{ color: textColor }" title="目录 / 选章节">
+                <i class="el-icon-tickets"></i>
+            </div>
             <div class="close" @click="close" :style="{ color: `${textColor}`, opacity: 0.7 }">
                 <i class="el-icon-close"></i>
             </div>
@@ -35,6 +38,7 @@ export default {
             bookInfo: {},
             currentBookInfo: {},
             currentBookIndex: null,
+            loadingBook: false,
         };
     },
     computed: {
@@ -53,14 +57,8 @@ export default {
         },
     },
     watch: {
-        time: async function () {
-            // console.log(this.time);
-            const currentBookInfo = this.findBookIndex(this.booksInfo, this.currentBookName);
-            // console.log(currentBookInfo);
-            this.currentBookIndex = currentBookInfo.index;
-            this.handleBookTotalWords();
-            this.loadFileContent();
-        },
+        time: async function () { await this.openCurrentBook(); },
+
     },
     methods: {
         close() {
@@ -71,6 +69,7 @@ export default {
             return booksInfo.find(book => book.bookName === bookName);
         },
         async loadFileContent() {
+            if (!this.theBook) return;
             const start = this.theBook.start;
 
             console.log('读取页面信息', start, this.wordsPerPage);
@@ -82,10 +81,10 @@ export default {
                     start,
                     this.wordsPerPage
                 );
-                if (!fileContent.replace(/\s+/g, '').length) {
+                if (!fileContent.length) {
                     this.errorMessage = '这本书你已经读完了，针不戳 ~';
                     this.fileContent = '';
-                    this.theBook.start -= this.wordsPerPage;
+                    this.theBook.start = Math.max(0, this.theBook.start - this.wordsPerPage);
                     await setSysConfig('booksInfo', this.booksInfo);
                 } else {
                     this.errorMessage = '';
@@ -100,7 +99,7 @@ export default {
                 }
             } catch (error) {
                 console.error(error);
-                this.errorMessage = '读取文件时发生错误';
+                this.errorMessage = '读取失败：' + error.message;
             }
         },
         findBookIndex(booksInfo, bookName) {
@@ -115,7 +114,30 @@ export default {
             }
             return -1;
         },
+        async selectChapter() {
+            try {
+                const chapter = await ipcRenderer.invoke('show-chapter-menu', this.currentBookName);
+                if (!chapter || !this.theBook) return;
+                this.theBook.start = chapter.start;
+                await setSysConfig('booksInfo', this.booksInfo);
+                await this.loadFileContent();
+            } catch (error) { this.errorMessage = '无法打开目录：' + error.message; }
+        },
+        async openCurrentBook() {
+            this.loadingBook = true;
+            try {
+                const info = this.findBookIndex(this.booksInfo, this.currentBookName);
+                if (info === -1) return;
+                this.currentBookIndex = info.index;
+                this.theBook.total = await ipcRenderer.invoke('read-file-total-words', this.currentBookName);
+                await this.loadFileContent();
+            } catch (error) {
+                this.fileContent = '';
+                this.errorMessage = '读取失败：' + error.message;
+            } finally { this.loadingBook = false; }
+        },
         async turnPage(isNext) {
+            if (!this.theBook || this.loadingBook) return;
             const theBook = this.theBook;
             theBook.start = Math.max(
                 theBook.start + (isNext ? this.wordsPerPage : -this.wordsPerPage),
@@ -172,13 +194,17 @@ export default {
 
     -webkit-user-select: auto;
     .content {
-        width: calc(100vw - 30px);
+        width: calc(100vw - 70px);
         -webkit-app-region: drag;
     }
 }
 .el-main {
     margin: 0 !important;
     padding: 0 !important;
+}
+.chapter-menu {
+    position: absolute; right: 30px; top: 0; width: 30px; text-align: center;
+    cursor: pointer; -webkit-app-region: no-drag;
 }
 .close {
     position: absolute;
@@ -194,6 +220,6 @@ export default {
     -webkit-app-region: no-drag;
 }
 .progress {
-    margin-right: 24px;
+    margin-right: 54px;
 }
 </style>

@@ -1,1 +1,1 @@
-9de2102e2aba7dd25c57bb24173a5f1d55345d2159f96f189f85376faee92c43  fish-book-offline-1.0.0-win-x64.zip
+03e5579e15ea28c130614fc2e386f4a4b5cd0995dbd56d3945d026cadaba3700  fish-book-offline-1.1.0-win-x64.zip

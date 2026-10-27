@@ -1,6 +1,9 @@
 module.exports = {
     pluginOptions: {
         electronBuilder: {
+            chainWebpackMainProcess(config) {
+                config.resolve.mainFields.clear().add('main');
+            },
             builderOptions: {
                 // options placed here will be merged with default configuration and passed to electron-builder
                 appId: 'com.maizesoft.fish-book',

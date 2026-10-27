@@ -10,6 +10,8 @@ import { FOLDER_PATH } from './common/path';
 import { sysConfig } from './config/sysConfig';
 const { registerShortcuts, unregisterShortcuts, applyShortcuts } = require('./common/shortcut');
 
+const { isSupportedBook, readBook } = require('./common/bookReader');
+
 const isDev = process.env.NODE_ENV === 'development';
 if (isDev) {
     console.log('当前为开发环境');
@@ -144,10 +146,10 @@ function createReadWindow() {
 ipcMain.on('readFiles', async (event, data) => {
     try {
         // 读取文件夹中所有文件
-        const files = await fs.promises.readdir(FOLDER_PATH);
+        const files = await fs.promises.readdir(FOLDER_PATH, { withFileTypes: true });
 
-        // 过滤出txt文件
-        const txtFiles = files.filter(file => path.extname(file) === '.txt');
+        // 列出本地 TXT 和 EPUB 书籍
+        const txtFiles = files.filter(file => file.isFile() && isSupportedBook(file.name)).map(file => file.name);
         // console.log(txtFiles);
         event.reply('fileContent', txtFiles);
     } catch (err) {
@@ -197,6 +199,23 @@ ipcMain.on('set-resizable', (event, resizable) => {
     readWindow.setResizable(resizable);
 });
 // 重置快捷键
+ipcMain.handle('show-chapter-menu', async (event, fileName) => {
+    if (typeof fileName !== 'string' || /[\\/]/.test(fileName) || path.basename(fileName) !== fileName) throw new Error('书籍文件名无效');
+    const book = await readBook(path.join(FOLDER_PATH, fileName));
+    return new Promise(resolve => {
+        const items = book.chapters.map(chapter => ({
+            label: chapter.title.replace(/&/g, '&&'),
+            click: () => resolve(chapter),
+        }));
+        const menu = [];
+        for (let i = 0; i < items.length; i += 30) {
+            const group = items.slice(i, i + 30);
+            if (items.length <= 30) menu.push(...group);
+            else menu.push({ label: `第 ${i + 1}–${i + group.length} 节`, submenu: group });
+        }
+        Menu.buildFromTemplate(menu).popup({ window: readWindow || mainWindow, callback: () => resolve(null) });
+    });
+});
 ipcMain.handle('apply-shortcuts', (event, keys) => applyShortcuts(readWindow, keys));
 ipcMain.on('shortcut-edit-start', () => unregisterShortcuts());
 function restoreShortcuts() {

@@ -16,7 +16,7 @@
                 </el-button>
                 <el-popover placement="top-start" title="提示" width="400" trigger="hover">
                     <div class="popover-content">
-                        您的书架对应您磁盘上的一个名为【books】的文件夹，如果您想要上传小说的话，点击下方蓝色按钮后，只需要把txt文件拖进文件夹，回到软件点击【同步书架】按钮即可。
+                        您的书架对应您磁盘上的一个名为【books】的文件夹，如果您想要上传小说的话，点击下方蓝色按钮后，只需要把 TXT 或 EPUB 文件拖进文件夹，回到软件点击【同步书架】按钮即可。
                         <el-divider></el-divider>
                         <div style="text-align: center">
                             <el-button type="primary" size="mini" @click="openFolder">
@@ -47,7 +47,7 @@
                         <div class="title" :style="{ color: item.hover ? '#fff' : '#eee' }">
                             {{ item.title }}
                         </div>
-                        <!-- <div class="author">{{ item.author }}</div> -->
+                        <el-button size="mini" @click.stop="openChapters(item)">目录 / 选章节</el-button>
                         <div class="progress" v-if="item.bookProgress">
                             已读 {{ item.bookProgress }}%
                         </div>
@@ -58,9 +58,16 @@
         <el-empty description="书架空空的，你是懂感恩老板的 ~" v-show="!books.length">
             <el-button type="text" @click="showTipDialog">如何创建书架？</el-button>
         </el-empty>
+        <el-dialog title="章节目录" :visible.sync="chaptersVisible" width="620px">
+            <p>{{ chaptersBook && chaptersBook.title }}</p>
+            <div class="chapter-list" v-loading="chaptersLoading">
+                <el-button v-for="(chapter, index) in chapters" :key="index" type="text"
+                    @click="selectChapter(chapter)">{{ chapter.title }}</el-button>
+            </div>
+        </el-dialog>
         <el-dialog :visible.sync="tipDialogVisible">
             <div class="popover-content">
-                您的书架对应您磁盘上的一个名为【books】的文件夹，如果您想要上传小说的话，点击下方蓝色按钮后，只需要把txt文件拖进文件夹，回到软件点击【同步书架】按钮即可。
+                您的书架对应您磁盘上的一个名为【books】的文件夹，如果您想要上传小说的话，点击下方蓝色按钮后，只需要把 TXT 或 EPUB 文件拖进文件夹，回到软件点击【同步书架】按钮即可。
                 <el-divider></el-divider>
                 <div style="text-align: center">
                     <el-button type="primary" size="mini" @click="openFolder">
@@ -79,6 +86,10 @@ export default {
     name: 'Book',
     data() {
         return {
+            chaptersVisible: false,
+            chaptersLoading: false,
+            chaptersBook: null,
+            chapters: [],
             tipDialogVisible: false,
             loading: true,
             currentBookName: '',
@@ -159,6 +170,27 @@ export default {
         },
 
         // item
+        async openChapters(item) {
+            this.chaptersBook = item;
+            this.chapters = [];
+            this.chaptersVisible = true;
+            this.chaptersLoading = true;
+            try {
+                const info = await ipcRenderer.invoke('get-book-info', item.name);
+                this.chapters = info.chapters;
+            } catch (error) {
+                this.$message.error('无法读取目录：' + error.message);
+            } finally { this.chaptersLoading = false; }
+        },
+        async selectChapter(chapter) {
+            const books = await getSysConfig('booksInfo');
+            const book = books.find(book => book.bookName === this.chaptersBook.name);
+            if (!book) return;
+            book.start = chapter.start;
+            await setSysConfig('booksInfo', books);
+            this.chaptersVisible = false;
+            await this.checkItem(this.chaptersBook);
+        },
         async checkItem(item) {
             ipcRenderer.send('show-read-win');
             await setSysConfig('currentBookName', item.name);
@@ -177,7 +209,7 @@ export default {
                 this.books = data.map(item => {
                     return {
                         name: item,
-                        title: item.replace('.txt', '').replace('《', '').replace('》', ''),
+                        title: item.replace(/\.(txt|epub)$/i, '').replace('《', '').replace('》', ''),
                         author: 'fish-book',
                         bgImg: this.getRandomImage(),
                         ...this.booksInfo.find(book => book.bookName === item),
@@ -228,6 +260,11 @@ export default {
 </script>
 
 <style scoped lang="scss">
+.chapter-list {
+    max-height: 50vh;
+    overflow-y: auto;
+    .el-button { display: block; margin-left: 0; white-space: normal; text-align: left; }
+}
 .book {
     padding: 10px 40px;
     .tools {
